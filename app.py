@@ -3,13 +3,13 @@ import sys
 import cv2 
 import json 
  
-from core.eocr.eocr_engine import run_eocr 
-from core.eocr.pixel_analyzer import analyze_pixels_in_regions 
-from core.eocr.font_geometry import analyze_text_geometry 
-from core.fusion.fusion_scorer import fuse_scores 
-from core.visualizer.visualizer import render_report 
+from eocr.eocr_engine import run_eocr 
+from eocr.pixel_analyzer import analyze_pixels_in_regions 
+from eocr.font_geometry import analyze_text_geometry 
+from fusion.fusion_scorer import fuse_scores 
+from visualizer.visualizer import render_report 
  
-from core.pixels.analyzer import analyze_continuity 
+from pixels.analyzer import analyze_continuity 
  
 def main(image_path): 
  
