@@ -1,0 +1,104 @@
+{
+    "caminho_imagem": "receita.jpeg",
+    "total_regioes_texto": 82,
+    "analise_global": {
+        "pixel_score": 80.9,
+        "continuity_score": 3.64,
+        "max_block_score": 26.13,
+        "geometry_score": 7.32,
+        "combined_score": 58.83,
+        "classification": "Média suspeita",
+        "pixel_classification": "Alta suspeita",
+        "suspicious_geometry_regions": 6,
+        "total_regions": 82
+    },
+    "anomalia_detectada": true,
+    "lista_anomalias": [
+        {
+            "texto_identificado": "Assinatura(s) e Carimbol",
+            "nivel_classificacao": "SUSPEITA ALTA",
+            "pontuacao_suspeita": 70.5,
+            "desvio_maximo_ela": 16.33,
+            "pixel_zscore": 2.52,
+            "edge_contrast": 0.01,
+            "angle_dev": 0.0,
+            "density_z": 0.65
+        },
+        {
+            "texto_identificado": "CRM: 267196",
+            "nivel_classificacao": "SUSPEITA",
+            "pontuacao_suspeita": 17.9,
+            "desvio_maximo_ela": 19.67,
+            "pixel_zscore": 1.74,
+            "edge_contrast": 0.18,
+            "angle_dev": 0.0,
+            "density_z": 0.86
+        },
+        {
+            "texto_identificado": "DOUGLAS DOS SANIOS AMEDA",
+            "nivel_classificacao": "SUSPEITA ALTA",
+            "pontuacao_suspeita": 23.0,
+            "desvio_maximo_ela": 16.0,
+            "pixel_zscore": 1.95,
+            "edge_contrast": 0.04,
+            "angle_dev": 0.0,
+            "density_z": 0.6
+        },
+        {
+            "texto_identificado": "Douglas]",
+            "nivel_classificacao": "SUSPEITA ALTA",
+            "pontuacao_suspeita": 100.0,
+            "desvio_maximo_ela": 13.0,
+            "pixel_zscore": -0.91,
+            "edge_contrast": 0.04,
+            "angle_dev": 10.53,
+            "density_z": 1.54
+        },
+        {
+            "texto_identificado": "[lmeida",
+            "nivel_classificacao": "SUSPEITA ALTA",
+            "pontuacao_suspeita": 100.0,
+            "desvio_maximo_ela": 11.0,
+            "pixel_zscore": -1.73,
+            "edge_contrast": 0.08,
+            "angle_dev": 10.92,
+            "density_z": 2.18
+        },
+        {
+            "texto_identificado": "Médick",
+            "nivel_classificacao": "SUSPEITA ALTA",
+            "pontuacao_suspeita": 100.0,
+            "desvio_maximo_ela": 11.0,
+            "pixel_zscore": -0.26,
+            "edge_contrast": 0.03,
+            "angle_dev": 10.2,
+            "density_z": 2.32
+        },
+        {
+            "texto_identificado": "CRM-SP",
+            "nivel_classificacao": "SUSPEITA ALTA",
+            "pontuacao_suspeita": 100.0,
+            "desvio_maximo_ela": 14.0,
+            "pixel_zscore": -2.21,
+            "edge_contrast": 0.06,
+            "angle_dev": 10.59,
+            "density_z": 3.54
+        },
+        {
+            "texto_identificado": "247196",
+            "nivel_classificacao": "SUSPEITA ALTA",
+            "pontuacao_suspeita": 100.0,
+            "desvio_maximo_ela": 18.0,
+            "pixel_zscore": -1.99,
+            "edge_contrast": 0.03,
+            "angle_dev": 8.37,
+            "density_z": 2.45
+        }
+    ],
+    "arquivos_gerados": [
+        "results/hybrid_analysis.png",
+        "results/xray_heatmap.png",
+        "results/continuity_map.png",
+        "results/continuity_heatmap.png"
+    ]
+}
