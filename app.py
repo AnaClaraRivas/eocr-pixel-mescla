@@ -3,6 +3,7 @@ from flask_cors import CORS
 
 import os
 import uuid
+import math
 
 from pixels.analyzer import analyze_continuity
 from pixels.preprocessing import preprocess_image
@@ -12,7 +13,7 @@ from eocr.font_geometry import analyze_text_geometry
 from eocr.pixel_analyzer import analyze_pixels_in_regions
 
 from fusion.fusion_scorer import fuse_scores
-from flask import Flask, request, jsonify, send_from_directory
+from visualizer.visualizer import render_report
 
 
 app = Flask(__name__)
@@ -25,36 +26,35 @@ CORS(app)
 
 def converter_json(obj):
 
-    # Dicionário
     if isinstance(obj, dict):
         return {
             str(chave): converter_json(valor)
             for chave, valor in obj.items()
         }
 
-    # Lista
     if isinstance(obj, list):
         return [
             converter_json(valor)
             for valor in obj
         ]
 
-    # Tupla
     if isinstance(obj, tuple):
         return [
             converter_json(valor)
             for valor in obj
         ]
 
-    # Tipos NumPy
     if hasattr(obj, "item"):
         return converter_json(obj.item())
 
-    # Arrays NumPy
     if hasattr(obj, "tolist"):
         return converter_json(obj.tolist())
 
-    # Outros valores
+    # TRATA NaN E INFINITY
+    if isinstance(obj, float):
+        if math.isnan(obj) or math.isinf(obj):
+            return 0.0
+
     return obj
 
 
@@ -83,6 +83,7 @@ def resultados(nome_arquivo):
         pasta_results,
         nome_arquivo
     )
+
 
 # =========================================================
 # ROTA DE ANÁLISE
@@ -149,86 +150,64 @@ def analisar():
         print("RESULTADO DA ANÁLISE")
         print("================================")
 
-        # -------------------------------------------------
-        # PIXEL
-        # -------------------------------------------------
-
-        print("\n--- PIXEL ---")
+        print("\n--- ANÁLISE GLOBAL ---")
 
         print(
-            "Pixel fraud score:",
-            resultado["pixel"]["pixel_score"]
+            "Pixel Score:",
+            resultado["analise_global"]["pixel_score"]
         )
 
         print(
             "Continuidade:",
-            resultado["pixel"]["continuity_score"]
+            resultado["analise_global"]["continuity_score"]
         )
 
         print(
             "Maior bloco:",
-            resultado["pixel"]["max_block_score"]
+            resultado["analise_global"]["max_block_score"]
         )
 
         print(
-            "Classificação:",
-            resultado["pixel"]["classification"]
-        )
-
-        print(
-            "Blocos suspeitos:",
-            len(
-                resultado["pixel"]["suspicious_blocks"]
-            )
-        )
-
-        print(
-            "Anomalias de vizinhança:",
-            len(
-                resultado["pixel"]["neighbor_anomalies"]
-            )
-        )
-
-        # -------------------------------------------------
-        # EOCR
-        # -------------------------------------------------
-
-        print("\n--- EOCR ---")
-
-        print(
-            "Regiões analisadas:",
-            resultado["eocr"]["total_regions"]
-        )
-
-        print(
-            "Regiões suspeitas:",
-            resultado["eocr"]["suspicious_regions"]
-        )
-
-        # -------------------------------------------------
-        # FUSÃO
-        # -------------------------------------------------
-
-        print("\n--- FUSÃO ---")
-
-        print(
-            "Score Pixel:",
-            resultado["fusion"]["pixel_score"]
-        )
-
-        print(
-            "Score EOCR:",
-            resultado["fusion"]["geometry_score"]
+            "Score de Geometria:",
+            resultado["analise_global"]["geometry_score"]
         )
 
         print(
             "Score combinado:",
-            resultado["fusion"]["combined_score"]
+            resultado["analise_global"]["combined_score"]
         )
 
         print(
-            "Classificação final:",
-            resultado["fusion"]["classification"]
+            "Classificação:",
+            resultado["analise_global"]["classification"]
+        )
+
+        print(
+            "Regiões suspeitas:",
+            resultado["analise_global"][
+                "suspicious_geometry_regions"
+            ]
+        )
+
+        print(
+            "Total de regiões:",
+            resultado["analise_global"][
+                "total_regions"
+            ]
+        )
+
+        print("\n--- ANOMALIAS REGIONAIS ---")
+
+        print(
+            "Anomalia detectada:",
+            resultado["anomalia_detectada"]
+        )
+
+        print(
+            "Regiões sinalizadas:",
+            len(
+                resultado["lista_anomalias"]
+            )
         )
 
         print("================================\n")
@@ -337,248 +316,301 @@ def analisar_documento(caminho):
 
 
     # =====================================================
-    # PREPARA REGIÕES DO EOCR
+    # GERA AS IMAGENS VISUAIS DA ANÁLISE
     # =====================================================
 
-    eocr_regions = []
+    os.makedirs("results", exist_ok=True)
+
+    render_report(
+        image_path=caminho,
+        regions=text_regions,
+        fused_scores=fusion_result,
+        pixel_maps=pixel_extras,
+        output_path="results/hybrid_analysis.png",
+        xray_path="results/xray_heatmap.png"
+    )
+
+
+    # =====================================================
+    # PREPARA LISTA DE ANOMALIAS
+    # =====================================================
+
+    lista_anomalias = []
+
+    # controla se alguma região apresentou anomalia
+    anomalies_found = False
+
+
+    # =====================================================
+    # ANALISA AS REGIÕES
+    # =====================================================
 
     for i, region in enumerate(text_regions):
 
         # -------------------------------------------------
-        # Resultado geométrico
+        # PEGA O RESULTADO DA FUSÃO
         # -------------------------------------------------
 
-        geo = (
-            geo_results[i]
-            if i < len(geo_results)
-            else {}
+        if i >= len(fusion_result.get("regions", [])):
+            continue
+
+        regional = fusion_result["regions"][i]
+
+        # -------------------------------------------------
+        # PEGA O SCORE REGIONAL
+        # -------------------------------------------------
+
+        score = regional.get(
+            "regional_score",
+            0
         )
 
         # -------------------------------------------------
-        # Resultado pixel regional
+        # VERIFICA SE É ALTA SUSPEITA
         # -------------------------------------------------
 
-        pixel = (
-            pixel_regional_results[i]
-            if i < len(pixel_regional_results)
-            else {}
+        is_risk = (
+            regional.get("classification")
+            == "Alta suspeita"
         )
 
         # -------------------------------------------------
-        # Monta região
+        # VERIFICA SE A REGIÃO É SUSPEITA
         # -------------------------------------------------
 
-        eocr_regions.append({
+        if is_risk or score >= 12.0:
 
-            "index": int(i),
+            anomalies_found = True
 
-            "text": str(
-                region.get(
-                    "text",
-                    ""
-                )
-            ),
+            # -------------------------------------------------
+            # DEFINE CLASSIFICAÇÃO
+            # -------------------------------------------------
 
-            "confidence": round(
-                float(
+            if is_risk:
+                status = "SUSPEITA ALTA"
+            else:
+                status = "SUSPEITA"
+
+            # -------------------------------------------------
+            # PEGA RESULTADOS REGIONAIS
+            # -------------------------------------------------
+
+            pixel = (
+                pixel_regional_results[i]
+                if i < len(pixel_regional_results)
+                else {}
+            )
+
+            geo = (
+                geo_results[i]
+                if i < len(geo_results)
+                else {}
+            )
+
+            # -------------------------------------------------
+            # CRIA DADOS DA ANOMALIA
+            # -------------------------------------------------
+
+            detalhe_anomalia = {
+
+                "texto_identificado": str(
                     region.get(
-                        "confidence",
-                        0
+                        "text",
+                        ""
                     )
                 ),
-                2
-            ),
 
-            "angle": round(
-                float(
-                    region.get(
-                        "angle",
-                        0
-                    )
+                "nivel_classificacao": status,
+
+                "pontuacao_suspeita": round(
+                    float(score),
+                    1
                 ),
-                2
-            ),
 
-            "angle_dev": round(
-                float(
+                "desvio_maximo_ela": pixel.get(
+                    "max_pixel_dev",
+                    0
+                ),
+
+                "pixel_zscore": regional.get(
+                    "pixel_zscore",
+                    0
+                ),
+
+                "edge_contrast": regional.get(
+                    "edge_contrast",
+                    0
+                ),
+
+                "angle_dev": regional.get(
+                    "angle_dev",
                     geo.get(
                         "angle_dev",
                         0
                     )
                 ),
-                2
-            ),
 
-            "density_z": round(
-                float(
+                "density_z": regional.get(
+                    "density_z",
                     geo.get(
                         "density_z",
                         0
                     )
-                ),
-                2
-            ),
-
-            "geo_suspicious": bool(
-                geo.get(
-                    "geo_suspicious",
-                    False
                 )
-            ),
+            }
 
-            "ela_val": round(
-                float(
-                    pixel.get(
-                        "ela_val",
-                        0
-                    )
-                ),
-                2
-            ),
+            # -------------------------------------------------
+            # ADICIONA NA LISTA
+            # -------------------------------------------------
 
-            "max_pixel_dev": round(
-                float(
-                    pixel.get(
-                        "max_pixel_dev",
-                        0
-                    )
-                ),
-                2
-            ),
-
-            "edge_contrast": round(
-                float(
-                    pixel.get(
-                        "edge_contrast",
-                        0
-                    )
-                ),
-                2
+            lista_anomalias.append(
+                detalhe_anomalia
             )
-        })
+
+            # -------------------------------------------------
+            # MOSTRA NO TERMINAL
+            # -------------------------------------------------
+
+            print(
+                f"\n • [{status}] "
+                f"Região {i + 1}"
+            )
+
+            print(
+                f"   Texto identificado : "
+                f"'{region.get('text', '')}'"
+            )
+
+            print(
+                f"   Score regional     : "
+                f"{float(score):.2f}/100"
+            )
+
+            print(
+                f"   Pixel Z-Score      : "
+                f"{regional.get('pixel_zscore', 0)}"
+            )
+
+            print(
+                f"   Pico Pixel (ELA)   : "
+                f"{pixel.get('max_pixel_dev', 0)}"
+            )
+
+            print(
+                f"   Edge Contrast      : "
+                f"{regional.get('edge_contrast', 0)}"
+            )
+
+            print(
+                f"   Desvio Angular     : "
+                f"{regional.get('angle_dev', 0)}"
+            )
+
+            print(
+                f"   Densidade Z        : "
+                f"{regional.get('density_z', 0)}"
+            )
+
+            print("-" * 65)
 
 
     # =====================================================
-    # CONTA REGIÕES SUSPEITAS
-    # =====================================================
-
-    suspicious_regions = sum(
-
-        1
-
-        for region in eocr_regions
-
-        if bool(
-            region["geo_suspicious"]
-        )
-    )
-
-
-    # =====================================================
-    # RESULTADO FINAL
+    # RESULTADO NO FORMATO ANTIGO
     # =====================================================
 
     resultado = {
 
-        # =================================================
-        # PIXEL
-        # =================================================
+        # caminho da imagem analisada
+        "caminho_imagem": caminho,
 
-        "pixel": {
+        # quantidade total de regiões encontradas
+        "total_regioes_texto": len(
+            text_regions
+        ),
 
-            "pixel_score":
-                fusion_result["global"]["pixel_score"],
+        # resultado global completo da fusão
+        "analise_global": fusion_result["global"],
 
-            "continuity_score":
-                fusion_result["global"]["continuity_score"],
+        # informa se alguma anomalia foi encontrada
+        "anomalia_detectada": anomalies_found,
 
-            "max_block_score":
-                fusion_result["global"]["max_block_score"],
+        # somente as regiões consideradas suspeitas
+        "lista_anomalias": lista_anomalias,
 
-            "classification":
-                fusion_result["global"]["pixel_classification"],
-
-            "suspicious_blocks":
-                pixel_result.get(
-                    "suspicious_blocks",
-                    []
-                ),
-
-            "neighbor_anomalies":
-                pixel_result.get(
-                    "neighbor_anomalies",
-                    []
-                ),
-
-            "heatmap":
-                pixel_result.get(
-                    "heatmap",
-                    None
-                )
-        },
-
-
-        # =================================================
-        # EOCR
-        # =================================================
-
-        "eocr": {
-
-            "total_regions":
-                len(eocr_regions),
-
-            "suspicious_regions":
-                suspicious_regions,
-
-            "regions":
-                eocr_regions
-        },
-
-
-        # =================================================
-        # FUSÃO
-        # =================================================
-
-        "fusion": {
-
-            "pixel_score":
-                fusion_result["global"]["pixel_score"],
-
-            "geometry_score":
-                fusion_result["global"]["geometry_score"],
-
-            "combined_score":
-                fusion_result["global"]["combined_score"],
-
-            "classification":
-                fusion_result["global"]["classification"],
-
-            "suspicious_geometry_regions":
-                fusion_result["global"][
-                    "suspicious_geometry_regions"
-                ],
-
-            "total_regions":
-                fusion_result["global"][
-                    "total_regions"
-                ]
-        },
-
-
-        # =================================================
-        # RESULTADOS REGIONAIS DA FUSÃO
-        # =================================================
-
-        "regions":
-            fusion_result.get(
-                "regions",
-                []
-            )
+        # arquivos gerados pela análise
+        "arquivos_gerados": [
+            "/results/hybrid_analysis.png",
+            "/results/xray_heatmap.png",
+            "/results/continuity_map.png",
+            "/results/continuity_heatmap.png"
+        ]
     }
 
 
     # =====================================================
-    # RETORNA RESULTADO
+    # MOSTRA O RESULTADO FINAL
+    # =====================================================
+
+    print("\n" + "=" * 65)
+    print("              RESULTADO FINAL")
+    print("=" * 65)
+
+    if anomalies_found:
+
+        print(
+            " ⚠ Foram encontradas regiões "
+            "com possíveis anomalias."
+        )
+
+        print(
+            f" • Regiões sinalizadas: "
+            f"{len(lista_anomalias)}"
+        )
+
+    else:
+
+        print(
+            " ✓ Nenhuma anomalia regional "
+            "foi detectada."
+        )
+
+    print(
+        f" • Classificação global: "
+        f"{fusion_result['global']['classification']}"
+    )
+
+    print(
+        f" • Score global: "
+        f"{fusion_result['global']['combined_score']:.2f}/100"
+    )
+
+    print("=" * 65)
+
+    print("\n Relatórios gerados:")
+
+    print(
+        "   1. results/hybrid_analysis.png"
+        "       → análise regional"
+    )
+
+    print(
+        "   2. results/xray_heatmap.png"
+        "             → mapa ELA"
+    )
+
+    print(
+        "   3. results/continuity_map.png"
+        "        → mapa de continuidade"
+    )
+
+    print(
+        "   4. results/continuity_heatmap.png"
+        "  → mapa do Pixel Core"
+    )
+
+
+    # =====================================================
+    # CONVERTE RESULTADO PARA JSON
     # =====================================================
 
     return converter_json(
@@ -596,12 +628,4 @@ if __name__ == "__main__":
         host="127.0.0.1",
         port=5000,
         debug=True
-    )
-
-# imagens
-@app.route("/results/<path:nome_arquivo>")
-def resultados(nome_arquivo):
-    return send_from_directory(
-        "results",
-        nome_arquivo
     )
