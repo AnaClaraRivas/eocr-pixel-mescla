@@ -27,6 +27,15 @@ def test_status_valid():
     assert resposta.get_json()["status"] == "funcionando"
 
 
+def test_interface_valid():
+    cliente = app.test_client()
+    resposta = cliente.get("/valid/interface")
+
+    assert resposta.status_code == 200
+    assert "Analise documentos com mais clareza" in resposta.get_data(as_text=True)
+    assert "Executar análise completa" in resposta.get_data(as_text=True)
+
+
 def test_analisar_exige_arquivo():
     cliente = app.test_client()
     resposta = cliente.post("/valid/analisar")
