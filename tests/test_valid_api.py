@@ -33,6 +33,7 @@ def test_interface_valid():
 
     assert resposta.status_code == 200
     assert "Analise documentos com mais clareza" in resposta.get_data(as_text=True)
+    assert "Executar análise completa" in resposta.get_data(as_text=True)
 
 
 def test_analisar_exige_arquivo():

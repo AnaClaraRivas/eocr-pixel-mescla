@@ -96,6 +96,38 @@ function renderSingle(data) {
   results.innerHTML = `<div class="results-grid">${documentoCards(data)}</div>`;
 }
 
+function renderPixel(pixel) {
+  const global = pixel.analise_global || {};
+  const classification = safe(global.classification);
+  const attention = pixel.anomalia_detectada || /suspeita/i.test(classification);
+  const stamp = Date.now();
+  const visuals = [
+    ['/results/hybrid_analysis.png', 'Análise regional combinada'],
+    ['/results/xray_heatmap.png', 'Mapa ELA'],
+    ['/results/continuity_map.png', 'Mapa de continuidade'],
+    ['/results/continuity_heatmap.png', 'Mapa de calor dos pixels'],
+  ];
+  return `
+    <article class="result-card wide">
+      <div class="card-heading"><h2>Análise EOCR + Pixel</h2><span class="score ${attention ? 'warning' : ''}">${classification}</span></div>
+      <div class="pixel-summary">
+        <div class="metric"><span>Score combinado</span><strong>${safe(global.combined_score, '0')}/100</strong></div>
+        <div class="metric"><span>Score de pixels</span><strong>${safe(global.pixel_score, '0')}</strong></div>
+        <div class="metric"><span>Continuidade</span><strong>${safe(global.continuity_score, '0')}</strong></div>
+        <div class="metric"><span>Geometria</span><strong>${safe(global.geometry_score, '0')}</strong></div>
+        <div class="metric"><span>Regiões analisadas</span><strong>${safe(global.total_regions ?? pixel.total_regioes_texto, '0')}</strong></div>
+        <div class="metric"><span>Regiões suspeitas</span><strong>${safe(global.suspicious_geometry_regions ?? pixel.lista_anomalias?.length, '0')}</strong></div>
+      </div>
+      <div class="visual-grid">
+        ${visuals.map(([src, label]) => `<figure class="visual-card"><img src="${src}?v=${stamp}" alt="${label}"><figcaption>${label}</figcaption></figure>`).join('')}
+      </div>
+    </article>`;
+}
+
+function renderComplete(valid, pixel) {
+  results.innerHTML = `${renderPixel(pixel)}<div class="results-grid">${documentoCards(valid)}</div>`;
+}
+
 function traducaoComparacao(value) {
   return ({ COMPATIVEL: 'Compatível', PARCIALMENTE_COMPATIVEL: 'Parcialmente compatível', DIVERGENTE: 'Divergente', INVALIDO: 'Inválido', AMBIGUO: 'Ambíguo', NAO_IDENTIFICADO: 'Não identificado', REQUER_REVISAO: 'Requer revisão', INCONSISTENTE: 'Inconsistente', 'SEM DADOS SUFICIENTES': 'Dados insuficientes' })[value] || safe(value);
 }
@@ -143,9 +175,41 @@ async function enviar(form, url, renderer) {
   }
 }
 
+async function enviarAnaliseCompleta(form) {
+  const button = form.querySelector('button[type="submit"]');
+  const arquivo = form.querySelector('#arquivo').files[0];
+  const validData = new FormData();
+  const pixelData = new FormData();
+  validData.append('arquivo', arquivo);
+  pixelData.append('imagem', arquivo);
+
+  button.disabled = true;
+  feedback.className = 'feedback';
+  feedback.innerHTML = '<span class="loader">Executando OCR, metadados e análise de pixels...</span>';
+  results.innerHTML = '';
+
+  try {
+    const [validResponse, pixelResponse] = await Promise.all([
+      fetch('/valid/analisar', { method: 'POST', body: validData }),
+      fetch('/analisar', { method: 'POST', body: pixelData }),
+    ]);
+    const [validResult, pixelResult] = await Promise.all([validResponse.json(), pixelResponse.json()]);
+    if (!validResponse.ok) throw new Error(validResult.erro || 'Falha na análise dos dados.');
+    if (!pixelResponse.ok) throw new Error(pixelResult.erro || 'Falha na análise de pixels.');
+    feedback.textContent = 'Análise completa concluída.';
+    renderComplete(validResult, pixelResult);
+    results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch (error) {
+    feedback.className = 'feedback error';
+    feedback.textContent = error.message;
+  } finally {
+    button.disabled = false;
+  }
+}
+
 document.querySelector('#single-form').addEventListener('submit', (event) => {
   event.preventDefault();
-  enviar(event.currentTarget, '/valid/analisar', renderSingle);
+  enviarAnaliseCompleta(event.currentTarget);
 });
 
 document.querySelector('#compare-form').addEventListener('submit', (event) => {
