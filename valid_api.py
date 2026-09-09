@@ -6,7 +6,7 @@ from dataclasses import asdict, is_dataclass
 import os
 import tempfile
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, render_template, request
 from werkzeug.utils import secure_filename
 
 from analyzers.document_comparator import DocumentComparator
@@ -70,6 +70,11 @@ def status():
         "status": "funcionando",
         "rotas": ["/valid/analisar", "/valid/comparar"],
     })
+
+
+@valid_bp.get("/interface")
+def interface():
+    return render_template("valid.html")
 
 
 @valid_bp.post("/analisar")

@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Análise e comparação de documentos com OCR, validação de CPF e metadados.">
+  <title>VALID — Análise documental</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='valid.css') }}">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="{{ url_for('valid.interface') }}" aria-label="Página inicial do VALID">
+      <span class="brand-mark" aria-hidden="true">V</span>
+      <span><strong>VALID</strong><small>Análise documental</small></span>
+    </a>
+    <span class="api-status"><i></i> Sistema disponível</span>
+  </header>
+
+  <main class="workspace">
+    <section class="intro">
+      <p class="eyebrow">VERIFICAÇÃO ASSISTIDA</p>
+      <h1>Analise documentos com mais clareza.</h1>
+      <p>Extraia dados, valide CPF, consulte metadados ou compare dois documentos. O resultado funciona como apoio à revisão humana.</p>
+    </section>
+
+    <section class="panel" aria-labelledby="painel-titulo">
+      <div class="tabs" role="tablist" aria-label="Tipo de análise">
+        <button class="tab active" role="tab" aria-selected="true" aria-controls="single-form" id="single-tab" data-target="single-form">Analisar documento</button>
+        <button class="tab" role="tab" aria-selected="false" aria-controls="compare-form" id="compare-tab" data-target="compare-form">Comparar documentos</button>
+      </div>
+
+      <h2 id="painel-titulo" class="sr-only">Envio de documentos</h2>
+
+      <form id="single-form" class="upload-form active" aria-labelledby="single-tab">
+        <label class="dropzone" for="arquivo">
+          <input id="arquivo" name="arquivo" type="file" accept=".jpg,.jpeg,.png,.pdf" required>
+          <span class="upload-icon" aria-hidden="true">↑</span>
+          <strong>Escolha um documento</strong>
+          <span class="file-label">JPG, PNG ou PDF</span>
+        </label>
+        <button class="primary-button" type="submit">Analisar documento</button>
+      </form>
+
+      <form id="compare-form" class="upload-form" aria-labelledby="compare-tab" hidden>
+        <div class="compare-grid">
+          <label class="dropzone compact" for="documento1">
+            <input id="documento1" name="documento1" type="file" accept=".jpg,.jpeg,.png,.pdf" required>
+            <span class="document-number">01</span>
+            <strong>Primeiro documento</strong>
+            <span class="file-label">JPG, PNG ou PDF</span>
+          </label>
+          <label class="dropzone compact" for="documento2">
+            <input id="documento2" name="documento2" type="file" accept=".jpg,.jpeg,.png,.pdf" required>
+            <span class="document-number">02</span>
+            <strong>Segundo documento</strong>
+            <span class="file-label">JPG, PNG ou PDF</span>
+          </label>
+        </div>
+        <button class="primary-button" type="submit">Comparar documentos</button>
+      </form>
+    </section>
+
+    <section id="feedback" class="feedback" aria-live="polite"></section>
+    <section id="results" class="results" aria-live="polite"></section>
+  </main>
+
+  <footer>
+    <p>VALID identifica indícios e inconsistências. A decisão final deve ser feita por uma pessoa responsável.</p>
+  </footer>
+
+  <script src="{{ url_for('static', filename='valid.js') }}"></script>
+</body>
+</html>

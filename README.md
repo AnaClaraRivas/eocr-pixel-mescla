@@ -11,6 +11,7 @@ O projeto mantém a análise EOCR/Pixel original e também expõe o módulo VALI
 ## Rotas do VALID
 
 - `GET /valid/`: verifica o status do módulo.
+- `GET /valid/interface`: abre a interface visual do sistema.
 - `POST /valid/analisar`: analisa OCR, CPF, datas e metadados. O campo é `arquivo`.
 - `POST /valid/comparar`: compara dois documentos. Os campos são `documento1` e `documento2`.
 
