@@ -14,10 +14,12 @@ from eocr.pixel_analyzer import analyze_pixels_in_regions
 
 from fusion.fusion_scorer import fuse_scores
 from visualizer.visualizer import render_report
+from valid_api import valid_bp
 
 
 app = Flask(__name__)
 CORS(app)
+app.register_blueprint(valid_bp)
 
 
 # =========================================================
