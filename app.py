@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, send_file
 from flask_cors import CORS
 
 import os
@@ -16,6 +16,7 @@ from fusion.fusion_scorer import fuse_scores
 from visualizer.visualizer import render_report
 from valid_api import valid_bp
 
+from pdf_report import gerar_relatorio_pdf
 
 app = Flask(__name__)
 CORS(app)
@@ -142,7 +143,10 @@ def analisar():
         # EXECUTA A ANÁLISE COMPLETA
         # =================================================
 
-        resultado = analisar_documento(caminho)
+        resultado = analisar_documento(
+            caminho,
+            imagem.filename
+        )
 
         # =================================================
         # EXIBE RESULTADOS NO TERMINAL
@@ -248,8 +252,10 @@ def analisar():
 # FUNÇÃO PRINCIPAL DE ANÁLISE
 # =========================================================
 
-def analisar_documento(caminho):
-
+def analisar_documento(
+        caminho,
+        nome_arquivo
+    ):
     # =====================================================
     # 1. ANÁLISE PIXEL GLOBAL
     # =====================================================
@@ -522,24 +528,20 @@ def analisar_documento(caminho):
 
     resultado = {
 
-        # caminho da imagem analisada
+        "nome_arquivo": nome_arquivo,
+
         "caminho_imagem": caminho,
 
-        # quantidade total de regiões encontradas
         "total_regioes_texto": len(
             text_regions
         ),
 
-        # resultado global completo da fusão
         "analise_global": fusion_result["global"],
 
-        # informa se alguma anomalia foi encontrada
         "anomalia_detectada": anomalies_found,
 
-        # somente as regiões consideradas suspeitas
         "lista_anomalias": lista_anomalias,
 
-        # arquivos gerados pela análise
         "arquivos_gerados": [
             "/results/hybrid_analysis.png",
             "/results/xray_heatmap.png",
@@ -619,6 +621,91 @@ def analisar_documento(caminho):
         resultado
     )
 
+# =========================================================
+# ROTA PARA GERAR RELATÓRIO PDF
+# =========================================================
+
+@app.route("/gerar_pdf", methods=["POST"])
+def gerar_pdf():
+
+    try:
+
+        # -------------------------------------------------
+        # RECEBE OS DADOS DA ANÁLISE
+        # -------------------------------------------------
+
+        dados = request.get_json()
+
+        if not dados:
+
+            return jsonify({
+                "erro": "Nenhum resultado de análise foi enviado."
+            }), 400
+
+        # -------------------------------------------------
+        # NOME DO DOCUMENTO
+        # -------------------------------------------------
+
+        nome_arquivo = dados.get(
+            "nome_arquivo",
+            "documento_analisado"
+        )
+
+        # -------------------------------------------------
+        # CRIA PASTA DOS RELATÓRIOS
+        # -------------------------------------------------
+
+        os.makedirs(
+            "reports",
+            exist_ok=True
+        )
+
+        # -------------------------------------------------
+        # NOME DO PDF
+        # -------------------------------------------------
+
+        nome_pdf = (
+            f"VALID_Relatorio_"
+            f"{uuid.uuid4().hex[:8]}.pdf"
+        )
+
+        caminho_pdf = os.path.join(
+            "reports",
+            nome_pdf
+        )
+
+        # -------------------------------------------------
+        # GERA O PDF
+        # -------------------------------------------------
+
+        gerar_relatorio_pdf(
+            resultado=dados,
+            nome_arquivo=nome_arquivo,
+            caminho_pdf=caminho_pdf
+        )
+
+        # -------------------------------------------------
+        # ENVIA PDF PARA O FRONTEND
+        # -------------------------------------------------
+
+        return send_file(
+            caminho_pdf,
+            as_attachment=True,
+            download_name=nome_pdf,
+            mimetype="application/pdf"
+        )
+
+    except Exception as erro:
+
+        print("\n================================")
+        print("ERRO AO GERAR PDF")
+        print("================================")
+        print(erro)
+        print("================================\n")
+
+        return jsonify({
+            "erro": str(erro)
+        }), 500
 
 # =========================================================
 # EXECUÇÃO DO FLASK
