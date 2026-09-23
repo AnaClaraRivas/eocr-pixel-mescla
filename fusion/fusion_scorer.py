@@ -70,10 +70,13 @@ def fuse_scores(
     # o Pixel novo representa 70% do resultado
     # e a geometria representa 30%
     final_score = ( 
-        pixel_score * 0.7 
+        pixel_score * 0.5
         + 
-        geo_score * 0.3 
+        geo_score * 0.5
     ) 
+
+    if suspicious_regions >= 1:
+        final_score = max(final_score, 75.0)
  
     # limita o score final para permanecer entre 0 e 100
     final_score = min( 
@@ -387,5 +390,8 @@ def fuse_scores(
         "pixel_result": 
             pixel_result 
     }
+  
+
+
   
 
